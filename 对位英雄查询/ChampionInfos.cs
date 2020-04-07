@@ -8,7 +8,7 @@ namespace 对位英雄查询
 {
     class Champion
     {
-        public short Index { get; set; }
+        public int Index { get; set; }
         public string Name { get; set; }
         public string Url { get; set; }
 
@@ -19,7 +19,7 @@ namespace 对位英雄查询
         public List<Champion> Top { get; set; }
         public List<Champion> Jungle { get; set; }
         public List<Champion> Mid { get; set; }
-        public List<Champion> Bottom { get; set; }
+        public List<Champion> Adc { get; set; }
         public List<Champion> Support { get; set; }
     }
 }

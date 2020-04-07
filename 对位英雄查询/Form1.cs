@@ -8,39 +8,77 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Drawing.Imaging;
+using System.Diagnostics;
 
 namespace 对位英雄查询
 {
     public partial class Form1 : Form
     {
+        ChampionInfos championInfos;
+        LoadingPictureBox loading;
         public Form1()
         {
             InitializeComponent();
         }
 
-        private void toolStripDropDownButton1_Click(object sender, EventArgs e)
+        private async void Form1_Load(object sender, EventArgs e)
         {
+            this.IsMdiContainer = true;
+            var width = tabControl1.Width / tabControl1.TabPages.Count;
+            var height = tabControl1.ItemSize.Height;
+            tabControl1.ItemSize = new Size(width, height);
+
+            StartLoading();
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+            LoadIconAsync();
+            sw.Stop();
+            Console.WriteLine(sw.Elapsed);
+            championInfos = await Task.Run(() => Crawler.GetPostionChampions());
+            InitTabPage();
+            StopLoading();
 
         }
 
-        private void Form1_Load(object sender, EventArgs e)
+        private void StartLoading()
         {
-            listView1.MultiSelect = false;
-            LoadIcon();
-            //this.IsMdiContainer = true;
-            //Form2 form = new Form2();
-            //form.MdiParent = this;
-            //tabControl1.Visible = false;
-            //Panel panel = new Panel();
-            //panel.Dock = DockStyle.Fill;
-            //panel.BringToFront();
-            //this.Controls.Add(panel);
-            //form.Parent = panel;
-            //form.Dock = DockStyle.Fill;
-            //form.Show();
+            loading = new LoadingPictureBox();
+            Controls.Add(loading);
+            tabControl1.Visible = false;
         }
 
-        private void LoadIcon()
+        private void StopLoading()
+        {
+            Controls.Remove(loading);
+            tabControl1.Visible = true;
+        }
+
+        private void InitTabPage()
+        {
+            InitListView(listView1, championInfos.Top);
+            InitListView(listView2, championInfos.Jungle);
+            InitListView(listView3, championInfos.Mid);
+            InitListView(listView4, championInfos.Adc);
+            InitListView(listView5, championInfos.Support);
+        }
+
+        private void InitListView(ListView listView, List<Champion> champions)
+        {
+            listView.LargeImageList = imageList1;
+            listView.MultiSelect = false;
+            foreach (var champion in champions)
+            {
+                var item = new ListViewItem()
+                {
+                    Text = champion.Name,
+                    ImageIndex = champion.Index,
+                    Tag = champion
+                };
+                listView.Items.Add(item);
+            }
+        }
+
+        private void LoadIconAsync()
         {
             var bitmap = Resource1.champion;
             imageList1.ImageSize = new Size(bitmap.Width, bitmap.Width);
@@ -48,22 +86,82 @@ namespace 对位英雄查询
             for (int i = 0; i < count; i++)
             {
                 Rectangle rectangle = new Rectangle(0, i * bitmap.Width, bitmap.Width, bitmap.Width);
-                imageList1.Images.Add(bitmap.Clone(rectangle, bitmap.PixelFormat));
-                listView1.Items.Add("", i);
+                Bitmap newBitmap = new Bitmap(bitmap.Width,bitmap.Width);
+                using(Graphics g=Graphics.FromImage(newBitmap))
+                {
+                    g.DrawImage(bitmap,0,0,rectangle,GraphicsUnit.Pixel);
+                    imageList1.Images.Add(newBitmap);
+                }
+                
             }
-            listView1.View = View.LargeIcon;
-            listView1.LargeImageList = imageList1;
+        }
+
+        private async Task GetChampionPage(string url)
+        {
+
+            StartLoading();
+            var table = await Task.Run(() => Crawler.GetCounterChampions(url, imageList1.Images));
+            StopLoading();
+            tabControl1.Visible = false;
+            Panel panel = new Panel
+            {
+                Dock = DockStyle.Fill
+            };
+            Form2 form = new Form2(table)
+            {
+                MdiParent = this,
+                Parent = panel,
+                Dock = DockStyle.Fill
+            };
+            Controls.Add(panel);
+            form.Show();
+        }
+
+        public void ReturnHome(Control control)
+        {
+            Controls.Remove(control);
+            tabControl1.Visible = true;
+        }
+
+        private void tabPage4_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private async Task listViewItemClicked(ListView listView)
+        {
+            if (listView.SelectedIndices.Count > 0)
+            {
+                var champion = listView.SelectedItems[0].Tag as Champion;
+                await GetChampionPage(champion.Url);
+            }
+            listView.SelectedItems.Clear();
+        }
+
+        private async void listView1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            await listViewItemClicked(listView1);
         }
 
 
-        private void listView1_SelectedIndexChanged(object sender, EventArgs e)
+        private async void listView2_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (listView1.SelectedItems.Count > 0)
-            {
-                var index = listView1.SelectedItems[0].Index.ToString();
-                
-                MessageBox.Show(index);
-            }
+            await listViewItemClicked(listView2);
+        }
+
+        private async void listView3_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            await listViewItemClicked(listView3);
+        }
+
+        private async void listView4_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            await listViewItemClicked(listView4);
+        }
+
+        private async void listView5_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            await listViewItemClicked(listView5);
         }
     }
 }
